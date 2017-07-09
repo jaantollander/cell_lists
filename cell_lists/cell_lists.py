@@ -1,19 +1,21 @@
 r"""
 Fixed-Radius Nearest Neighbors Search
+=====================================
 
 Cell lists algorithm partitions space into grid and sorts points into a cell in
 discrete grid, allowing fast nearest neighbor searches for fixed radius because
 it is only necessary to search current and neighboring cells for points instead
 of the whole domain.
 
-Examples:
-    >>> points = ...
-    >>> cell_size = ...
-    >>> points_indices, cells_count, cells_offset, grid_shape = add_to_cells(points, cell_size)
-    >>> neigh_cells = neighboring_cells(grid_shape)
-    >>> cell_indices = np.arange(len(cells_count))
-    >>> for i, j in find_neighbors(cell_indices, neigh_cells, points_indices, cells_count, cells_offset)
-    >>>     pass
+Examples
+--------
+>>> points = ...
+>>> cell_size = ...
+>>> points_indices, cells_count, cells_offset, grid_shape = add_to_cells(points, cell_size)
+>>> neigh_cells = neighboring_cells(grid_shape)
+>>> cell_indices = np.arange(len(cells_count))
+>>> for i, j in find_neighbors(cell_indices, neigh_cells, points_indices, cells_count, cells_offset)
+>>>     pass
 
 """
 import numba
@@ -192,6 +194,49 @@ def find_neighbors(cell_indices, neigh_cells, points_indices, cells_count,
                     yield i, j
 
 
-def split_into_parts(amount):
-    """Split cells equally by the amount of interactions."""
-    pass
+@numba.jit([(i8, i8[:], i8[:])], nopython=True, nogil=True, cache=True)
+def split_into_parts(n, cells_count, neigh_cells):
+    r"""Split cells equally by the amount of interactions between agents in
+    an cell and neighboring cells.
+
+    Parameters
+    ----------
+    n : int
+    neigh_cells
+    cells_count
+
+    Returns
+    -------
+    numpy.array
+        Array of the indices to slice the array for the splits.
+
+    """
+    assert n > 0
+
+    # Compute cumulative sum of number of interactions per cell.
+    interactions_total = 0
+    interactions_cumsum = np.empty_like(cells_count)
+
+    for i, count in enumerate(cells_count):
+        if count == 0:
+            continue
+        interactions_total += (count - 1) ** 2
+        for j in neigh_cells:
+            interactions_total += count * cells_count[i + j]
+        interactions_cumsum[i] = interactions_total
+
+    # Split the cells into parts that have equal amount of interactions.
+    size = np.int64(np.ceil(interactions_total / n))
+    splits = np.empty(n + 1, dtype=np.int64)
+    splits[0] = 0
+    splits[-1] = len(cells_count)
+
+    part_index = 1
+    i = 0
+    while part_index < n:
+        if interactions_cumsum[i] >= part_index * size:
+            splits[part_index] = i
+            part_index += 1
+        i += 1
+
+    return splits

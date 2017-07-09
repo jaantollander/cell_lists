@@ -1,10 +1,13 @@
+import threading
+
 import hypothesis.strategies as st
+import numba
 import numpy as np
 from hypothesis.core import given, example
 from hypothesis.extra.numpy import arrays
 
 from cell_lists.cell_lists import add_to_cells, neighboring_cells, \
-    find_neighbors
+    find_neighbors, split_into_parts
 
 
 def reals(min_value=None,
@@ -91,3 +94,41 @@ def test_find_neighbors(points, cell_size):
         distance = np.linalg.norm(points[i, :] - points[j, :])
         assert distance <= max_distance or \
                np.isclose(distance, max_distance, rtol=1.e-3, atol=1.e-5)
+
+
+@numba.jit(nopython=True, nogil=True, cache=True)
+def consume_find_neighbors(cell_indices, neigh_cells, points_indices,
+                           cells_count, cells_offset):
+    for _ in find_neighbors(cell_indices, neigh_cells, points_indices,
+                            cells_count, cells_offset):
+        pass
+
+
+def test_multithreaded():
+    n = 4
+    low = -1.0
+    high = 1.0
+    size = 1000
+    points = np.random.uniform(low, high, size=(size, 2))
+    cell_size = 0.01
+
+    points_indices, cells_count, cells_offset, grid_shape = add_to_cells(
+        points, cell_size)
+    cell_indices = np.arange(len(cells_count))
+    neigh_cells = neighboring_cells(grid_shape)
+    splits = split_into_parts(n, cells_count, neigh_cells)
+
+    cell_indices_chucks = (
+        cell_indices[start:end] for start, end in zip(splits[:-1], splits[1:]))
+
+    # Spawn one thread per chunk
+    threads = [threading.Thread(
+        target=consume_find_neighbors,
+        args=(chunk, neigh_cells, points_indices, cells_count, cells_offset))
+        for chunk in cell_indices_chucks]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert True
