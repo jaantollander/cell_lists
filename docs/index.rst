@@ -1,15 +1,11 @@
-.. Cell Lists documentation master file, created by
-   sphinx-quickstart on Sat Jul  8 08:59:36 2017.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
-Welcome to Cell Lists's documentation!
-======================================
+Cell Lists
+==========
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Package
 
+   apidocs/cell_lists.rst
 
 
 Indices and tables

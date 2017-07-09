@@ -1,9 +1,10 @@
+import hypothesis.strategies as st
 import numpy as np
 from hypothesis.core import given, example
-import hypothesis.strategies as st
 from hypothesis.extra.numpy import arrays
 
-from cell_lists.cell_lists import add_to_cells
+from cell_lists.cell_lists import add_to_cells, neighboring_cells, \
+    find_neighbors
 
 
 def reals(min_value=None,
@@ -48,6 +49,7 @@ def reals(min_value=None,
 @example(points=np.zeros((0, 2)), cell_size=0.1)
 @example(points=np.zeros((1, 2)), cell_size=0.1)
 def test_add_to_cells(points, cell_size):
+    """Test that add to cells returns correct values."""
     index_list, count, offset, shape = add_to_cells(points, cell_size)
 
     size, dimensions = points.shape
@@ -58,5 +60,34 @@ def test_add_to_cells(points, cell_size):
     assert np.all(np.sort(offset) == offset)
 
 
-def test_find_neighbors():
+@given(arrays(dtype=np.int64, shape=1) |
+       arrays(dtype=np.int64, shape=2) |
+       arrays(dtype=np.int64, shape=3))
+def test_neighboring_cells(grid_shape):
+    """Test that neighboring cells works."""
+    neigh = neighboring_cells(grid_shape)
     assert True
+
+
+@given(points=reals(-10.0, 10.0, shape=(10, 2)) |
+              reals(-10.0, 10.0, shape=(10, 3)),
+       cell_size=st.floats(0.1, 1.0))
+def test_find_neighbors(points, cell_size):
+    """Test that neighbors are withing the correct distance from each other
+
+    .. math::
+       d(\mathbf{p}_i, \mathbf{p}_j) \leq \sqrt{n (2 c)^2} = 2c \sqrt{n}
+
+    """
+    size, dimension = points.shape
+    points_indices, cells_count, cells_offset, grid_shape = add_to_cells(
+        points, cell_size)
+    cell_indices = np.arange(len(cells_count))
+    neigh_cells = neighboring_cells(grid_shape)
+
+    for i, j in find_neighbors(cell_indices, neigh_cells, points_indices,
+                               cells_count, cells_offset):
+        max_distance = 2 * cell_size * np.sqrt(dimension)
+        distance = np.linalg.norm(points[i, :] - points[j, :])
+        assert distance <= max_distance or \
+               np.isclose(distance, max_distance, rtol=1.e-3, atol=1.e-5)

@@ -13,20 +13,20 @@ requirements:
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.abspath('..'))
 
 # -- Build apidocs automatically when sphinx is run ----------------------
 
-# from sphinx.apidoc import main
+from sphinx.apidoc import main
 
-# ROOT_PATH = os.path.dirname(os.path.dirname(__file__))
+ROOT_PATH = os.path.dirname(os.path.dirname(__file__))
 
-# out_path = 'apidocs'
-# module_path = os.path.join(ROOT_PATH, '<module_name>')
-# main(['--separate',
-#       '--output-dir', out_path, module_path,
-#       '--no-toc',
-#       '--force'])
+out_path = 'apidocs'
+module_path = os.path.join(ROOT_PATH, 'cell_lists')
+main(['--separate',
+      '--output-dir', out_path, module_path,
+      '--no-toc',
+      '--force'])
 
 
 # -- General configuration ------------------------------------------------

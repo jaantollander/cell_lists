@@ -1,7 +1,7 @@
 from distutils.core import setup
 
 setup(
-    name='cell_lists',
+    name='Cell Lists',
     version='0.1',
     packages=['cell_lists', 'cell_lists.tests'],
     url='',

@@ -1,4 +1,8 @@
 .idea
+*.benchmarks
+apidocs
+make_docs.py
+
 
 # Created by .ignore support plugin (hsz.mobi)
 ### Python template
