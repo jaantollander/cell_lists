@@ -9,6 +9,7 @@ from cell_lists.cell_lists import add_to_cells, iter_nearest_neighbors, \
 
 low = 0.0
 high = 1.0
+# TODO: number of cells
 cell_sizes = (0.01, 0.05, 0.1)
 sizes = (100, 250, 500, 750, 1000, 2500, 5000, 7500, 10000)
 

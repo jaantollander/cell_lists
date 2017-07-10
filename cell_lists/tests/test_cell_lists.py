@@ -72,6 +72,35 @@ def test_neighboring_cells(grid_shape):
     assert True
 
 
+def neighbor_distance_condition(cell_size, dimension, p0, p1):
+    max_distance = 2 * cell_size * np.sqrt(dimension)
+    distance = np.linalg.norm(p0 - p1)
+    return distance <= max_distance or \
+           np.isclose(distance, max_distance, rtol=1.e-3, atol=1.e-5)
+
+
+@numba.jit(nopython=True, nogil=True, cache=True)
+def brute_force(indices, points, radius):
+    result = []
+    for k, i in enumerate(indices[:-1]):
+        for j in indices[k + 1:]:
+            if np.linalg.norm(points[i, :] - points[j, :]) <= radius:
+                result.append((i, j))
+                result.append((j, i))
+    return result
+
+
+@numba.jit(nopython=True, nogil=True, cache=True)
+def find_neighbors(cell_indices, neigh_cells, points_indices, cells_count,
+                   cells_offset):
+    result = []
+    for i, j in iter_nearest_neighbors(cell_indices, neigh_cells,
+                                       points_indices,
+                                       cells_count, cells_offset):
+        result.append((i, j))
+    return result
+
+
 @given(points=reals(-10.0, 10.0, shape=(10, 2)) |
               reals(-10.0, 10.0, shape=(10, 3)),
        cell_size=st.floats(0.1, 1.0))
@@ -88,20 +117,26 @@ def test_find_neighbors(points, cell_size):
     cell_indices = np.arange(len(cells_count))
     neigh_cells = neighboring_cells(grid_shape)
 
-    for i, j in iter_nearest_neighbors(cell_indices, neigh_cells, points_indices,
-                                       cells_count, cells_offset):
-        max_distance = 2 * cell_size * np.sqrt(dimension)
-        distance = np.linalg.norm(points[i, :] - points[j, :])
-        assert distance <= max_distance or \
-               np.isclose(distance, max_distance, rtol=1.e-3, atol=1.e-5)
+    correct = set(brute_force(np.arange(size), points, cell_size))
+    result = find_neighbors(cell_indices, neigh_cells, points_indices,
+                            cells_count, cells_offset)
+
+    # FIXME
+    # for i, j in result:
+    #     assert neighbor_distance_condition(
+    #         cell_size, dimension, points[i, :], points[j, :])
+
+    results_set = {(i, j) for i, j in result if
+                   np.linalg.norm(points[i, :] - points[j, :]) <= cell_size}
+
+    assert results_set.issubset(correct)
 
 
-@numba.jit(nopython=True, nogil=True, cache=True)
-def consume_find_neighbors(cell_indices, neigh_cells, points_indices,
-                           cells_count, cells_offset):
-    for _ in iter_nearest_neighbors(cell_indices, neigh_cells, points_indices,
-                                    cells_count, cells_offset):
-        pass
+def find_neighbors_thread(index, results, cell_indices, neigh_cells,
+                          points_indices, cells_count, cells_offset):
+    results[index].extend(
+        find_neighbors(cell_indices, neigh_cells, points_indices, cells_count,
+                       cells_offset))
 
 
 def test_multithreaded():
@@ -121,14 +156,23 @@ def test_multithreaded():
     cell_indices_chucks = (cell_indices[start:end] for start, end in
                            zip(splits[:-1], splits[1:]))
 
+    # TODO: save results and compare with single threaded version
+    # TODO: check that the solution is valid
+    results = [[] for _ in range(n)]
+
     # Spawn one thread per chunk
     threads = [threading.Thread(
-        target=consume_find_neighbors,
-        args=(chunk, neigh_cells, points_indices, cells_count, cells_offset))
-        for chunk in cell_indices_chucks]
+        target=find_neighbors_thread,
+        args=(i, results, chunk, neigh_cells, points_indices, cells_count,
+              cells_offset))
+        for i, chunk in enumerate(cell_indices_chucks)]
     for thread in threads:
         thread.start()
     for thread in threads:
         thread.join()
 
-    assert True
+    res = sum(results, [])
+    correct = find_neighbors(cell_indices, neigh_cells, points_indices,
+                             cells_count, cells_offset)
+
+    assert res == correct
