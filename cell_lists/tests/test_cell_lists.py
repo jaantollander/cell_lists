@@ -7,7 +7,7 @@ from hypothesis.core import given, example
 from hypothesis.extra.numpy import arrays
 
 from cell_lists.cell_lists import add_to_cells, neighboring_cells, \
-    find_neighbors, split_into_parts
+    iter_nearest_neighbors, split_into_parts
 
 
 def reals(min_value=None,
@@ -88,8 +88,8 @@ def test_find_neighbors(points, cell_size):
     cell_indices = np.arange(len(cells_count))
     neigh_cells = neighboring_cells(grid_shape)
 
-    for i, j in find_neighbors(cell_indices, neigh_cells, points_indices,
-                               cells_count, cells_offset):
+    for i, j in iter_nearest_neighbors(cell_indices, neigh_cells, points_indices,
+                                       cells_count, cells_offset):
         max_distance = 2 * cell_size * np.sqrt(dimension)
         distance = np.linalg.norm(points[i, :] - points[j, :])
         assert distance <= max_distance or \
@@ -99,8 +99,8 @@ def test_find_neighbors(points, cell_size):
 @numba.jit(nopython=True, nogil=True, cache=True)
 def consume_find_neighbors(cell_indices, neigh_cells, points_indices,
                            cells_count, cells_offset):
-    for _ in find_neighbors(cell_indices, neigh_cells, points_indices,
-                            cells_count, cells_offset):
+    for _ in iter_nearest_neighbors(cell_indices, neigh_cells, points_indices,
+                                    cells_count, cells_offset):
         pass
 
 
@@ -118,8 +118,8 @@ def test_multithreaded():
     neigh_cells = neighboring_cells(grid_shape)
     splits = split_into_parts(n, cells_count, neigh_cells)
 
-    cell_indices_chucks = (
-        cell_indices[start:end] for start, end in zip(splits[:-1], splits[1:]))
+    cell_indices_chucks = (cell_indices[start:end] for start, end in
+                           zip(splits[:-1], splits[1:]))
 
     # Spawn one thread per chunk
     threads = [threading.Thread(

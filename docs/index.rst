@@ -1,11 +1,12 @@
 Cell Lists
 ==========
+Cell lists is an algorithm for computing fast fixed-radius nearest neighbors search.
 
 .. toctree::
    :maxdepth: 2
-   :caption: Package
 
-   apidocs/cell_lists.rst
+   cell_lists.rst
+   benchmarks.rst
 
 
 Indices and tables

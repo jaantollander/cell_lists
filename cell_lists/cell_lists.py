@@ -1,22 +1,70 @@
 r"""
 Fixed-Radius Nearest Neighbors Search
 =====================================
-
 Cell lists algorithm partitions space into grid and sorts points into a cell in
-discrete grid, allowing fast nearest neighbor searches for fixed radius because
-it is only necessary to search current and neighboring cells for points instead
-of the whole domain.
+discrete grid, allowing *fast nearest neighbor searches* for *fixed radius*
+because it is only necessary to search current and neighboring cells for points
+instead of the whole domain.
 
-Examples
---------
->>> points = ...
->>> cell_size = ...
->>> points_indices, cells_count, cells_offset, grid_shape = add_to_cells(points, cell_size)
->>> neigh_cells = neighboring_cells(grid_shape)
->>> cell_indices = np.arange(len(cells_count))
->>> for i, j in find_neighbors(cell_indices, neigh_cells, points_indices, cells_count, cells_offset)
->>>     pass
 
+Inserting the Points into Cells
+-------------------------------
+Point in :math:`n \in \mathbb{N}` dimension is denoted
+
+.. math::
+   \mathbf{p}_i \in \mathbb{R}^n
+
+An sequence of points of size :math:`N`, for which index set is
+:math:`J = \{0,\ldots ,N-1\}`, is denoted
+
+.. math::
+   (\mathbf{p}_i)_{i \in J}
+
+A cell of size :math:`c > 0` for point :math:`i` is calculated
+
+.. math::
+   \mathbf{c}_i = \left\lfloor \frac{\mathbf{p}_i}{c} \right\rfloor
+
+Algorithm
+
+1. Compute the shape of the grid
+2. Add ghost cells into the shape
+3. Count the number of points that belong to each cell
+4. Cumulative sum of the counts
+5. Sort the indices of the points in order which they appear in the cells and
+   store them in an array.
+
+
+Finding Nearest Neighbors
+-------------------------
+
+
+Computational Complexity
+------------------------
+Brute force
+
+.. math::
+   \mathcal{O}(N^2)
+
+Cell lists
+
+.. math::
+   \mathcal{O}(N k)
+
+
+Memory Usage
+------------
+
+
+References
+----------
+.. [FRNNS] Fixed-radius near neighbors. (2017). En.wikipedia.org. Retrieved 10 July 2017, from https://en.wikipedia.org/wiki/Fixed-radius_near_neighbors
+.. [celllists] Cell lists. (2017). En.wikipedia.org. Retrieved 10 July 2017, from https://en.wikipedia.org/wiki/Cell_lists
+.. [Bentley75] Bentley, J. L. (1975). A Survey of techniques for fixed radius near neighbor searching, 37.
+.. [Lecture2] Lecture 2 : Fixed-Radius Near Neighbors and Geometric Basics. (1977), 5–16.
+.. [Hoetzlein14] Hoetzlein, R. (2014). Fast Fixed-Radius Nearest Neighbors: Interactive Million-Particle Fluids. GPU Technology Conference.
+
+----
 """
 import numba
 import numpy as np
@@ -26,23 +74,28 @@ import itertools
 
 @numba.jit([(f8[:, :], f8)], nopython=True, nogil=True, cache=True)
 def add_to_cells(points, cell_size):
-    r"""
-    Sorts the indices of the points into the grid by the given cell size.
+    r"""Sorts the indices of the points into the grid by the given cell size.
 
     Parameters
     ----------
     points : array of floats
-        Points that we want to search for nearest neighbors. An array of
-        :math:`N` points :math:`(\mathbf{p}_i \in \mathbb{R}^n)_{i=0,...,N-1}`,
-        where :math:`n \in \mathbb{N}` is the dimensions of the points.
-
+        A sequence points :math:`\mathbf{p}_i` that we want to search for
+        nearest neighbors.
     cell_size : float
         Positive real number :math:`c > 0` denoting the cell size of the grid.
 
     Returns
     -------
-    (array, array, array, array)
-        Tuple of arrays
+    (numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray)
+        Tuple of arrays where the elements are
+
+        - **points_indices** -- Array of integers for querying the indices of
+          nearest neighbors.
+        - **cells_count** -- Array of integers denoting the number of points
+          inside each cell.
+        - **cells_offset** -- Array of integers denoting the offset index for
+          each cell in **points_indices** array.
+        - **grid_shape** -- Array of integers denoting the shape of the output grid.
 
     """
     assert cell_size > 0 and points.ndim == 2
@@ -62,8 +115,10 @@ def add_to_cells(points, cell_size):
             if x > x_max[j]:
                 x_max[j] = x
 
-    # TODO: add ghost cells
-    # Shape of the grid of bins. +1 is for converting from indexing to size.
+    # Shape of the grid of bins.
+    # +1 is for converting from indexing to size.
+    # +2 is the padding from ghost cells which are extra cells for iterating
+    # over the cells without having to do complicated bounds checks.
     grid_shape = (x_max - x_min) + 1 + 2
     grid_size = np.prod(grid_shape)
 
@@ -115,8 +170,7 @@ def neighboring_cells(grid_shape, distance=1):
 
     Parameters
     ----------
-    grid_shape : np.ndarray
-        Shape of the grid
+    grid_shape
     distance : int
         The maximum distance :math:`d \in \mathbb{N}` of nearest neighboring
         cells.
@@ -157,8 +211,8 @@ def find_points_in_cell(cell_index, points_indices, cells_count, cells_offset):
 
 
 @numba.jit([(i8[:], i8[:], i8[:], i8[:], i8[:])], nopython=True, nogil=True)
-def find_neighbors(cell_indices, neigh_cells, points_indices, cells_count,
-                   cells_offset):
+def iter_nearest_neighbors(cell_indices, neigh_cells, points_indices, cells_count,
+                           cells_offset):
     r"""Iterate over cell lists
 
     Parameters
@@ -167,13 +221,14 @@ def find_neighbors(cell_indices, neigh_cells, points_indices, cells_count,
         Indices of the cells to which iterate over.
         `np.arange(len(cells_count))`
     neigh_cells
-    points_indices : array
-    cells_count : array
-    cells_offset : array
+    points_indices
+    cells_count
+    cells_offset
 
     Yields
     ------
     (int, int)
+        Tuple of indices of a pair of nearest neighbors.
 
     """
     for cur_cell in cell_indices:
@@ -188,7 +243,8 @@ def find_neighbors(cell_indices, neigh_cells, points_indices, cells_count,
 
         for neigh_cell in neigh_cells:
             points_neigh = find_points_in_cell(
-                cur_cell + neigh_cell, points_indices, cells_count, cells_offset)
+                cur_cell + neigh_cell, points_indices, cells_count,
+                cells_offset)
             for i in points_cur:
                 for j in points_neigh:
                     yield i, j
@@ -202,6 +258,7 @@ def split_into_parts(n, cells_count, neigh_cells):
     Parameters
     ----------
     n : int
+        Number of parts to split cells.
     neigh_cells
     cells_count
 
