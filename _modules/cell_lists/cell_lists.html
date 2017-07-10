@@ -1,0 +1,387 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>cell_lists.cell_lists &#8212; Cell Lists 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for cell_lists.cell_lists</h1><div class="highlight"><pre>
+<span></span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Fixed-Radius Nearest Neighbors Search</span>
+<span class="sd">=====================================</span>
+<span class="sd">Cell lists algorithm partitions space into grid and sorts points into a cell in</span>
+<span class="sd">discrete grid, allowing *fast nearest neighbor searches* for *fixed radius*</span>
+<span class="sd">because it is only necessary to search current and neighboring cells for points</span>
+<span class="sd">instead of the whole domain.</span>
+
+
+<span class="sd">Inserting the Points into Cells</span>
+<span class="sd">-------------------------------</span>
+<span class="sd">Point in :math:`n \in \mathbb{N}` dimension is denoted</span>
+
+<span class="sd">.. math::</span>
+<span class="sd">   \mathbf{p}_i \in \mathbb{R}^n</span>
+
+<span class="sd">An sequence of points of size :math:`N`, for which index set is</span>
+<span class="sd">:math:`J = \{0,\ldots ,N-1\}`, is denoted</span>
+
+<span class="sd">.. math::</span>
+<span class="sd">   (\mathbf{p}_i)_{i \in J}</span>
+
+<span class="sd">A cell of size :math:`c &gt; 0` for point :math:`i` is calculated</span>
+
+<span class="sd">.. math::</span>
+<span class="sd">   \mathbf{c}_i = \left\lfloor \frac{\mathbf{p}_i}{c} \right\rfloor</span>
+
+<span class="sd">Algorithm</span>
+
+<span class="sd">1. Compute the shape of the grid</span>
+<span class="sd">2. Add ghost cells into the shape</span>
+<span class="sd">3. Count the number of points that belong to each cell</span>
+<span class="sd">4. Cumulative sum of the counts</span>
+<span class="sd">5. Sort the indices of the points in order which they appear in the cells and</span>
+<span class="sd">   store them in an array.</span>
+
+
+<span class="sd">Finding Nearest Neighbors</span>
+<span class="sd">-------------------------</span>
+
+
+<span class="sd">Computational Complexity</span>
+<span class="sd">------------------------</span>
+<span class="sd">Brute force</span>
+
+<span class="sd">.. math::</span>
+<span class="sd">   \mathcal{O}(N^2)</span>
+
+<span class="sd">Cell lists</span>
+
+<span class="sd">.. math::</span>
+<span class="sd">   \mathcal{O}(N k)</span>
+
+
+<span class="sd">Memory Usage</span>
+<span class="sd">------------</span>
+
+
+<span class="sd">References</span>
+<span class="sd">----------</span>
+<span class="sd">.. [FRNNS] Fixed-radius near neighbors. (2017). En.wikipedia.org. Retrieved 10 July 2017, from https://en.wikipedia.org/wiki/Fixed-radius_near_neighbors</span>
+<span class="sd">.. [celllists] Cell lists. (2017). En.wikipedia.org. Retrieved 10 July 2017, from https://en.wikipedia.org/wiki/Cell_lists</span>
+<span class="sd">.. [Bentley75] Bentley, J. L. (1975). A Survey of techniques for fixed radius near neighbor searching, 37.</span>
+<span class="sd">.. [Lecture2] Lecture 2 : Fixed-Radius Near Neighbors and Geometric Basics. (1977), 5–16.</span>
+<span class="sd">.. [Hoetzlein14] Hoetzlein, R. (2014). Fast Fixed-Radius Nearest Neighbors: Interactive Million-Particle Fluids. GPU Technology Conference.</span>
+
+<span class="sd">----</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">numba</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">numba</span> <span class="k">import</span> <span class="n">f8</span><span class="p">,</span> <span class="n">i8</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+
+
+<span class="nd">@numba</span><span class="o">.</span><span class="n">jit</span><span class="p">([(</span><span class="n">f8</span><span class="p">[:,</span> <span class="p">:],</span> <span class="n">f8</span><span class="p">)],</span> <span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">nogil</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<div class="viewcode-block" id="add_to_cells"><a class="viewcode-back" href="../../cell_lists.html#cell_lists.cell_lists.add_to_cells">[docs]</a><span class="k">def</span> <span class="nf">add_to_cells</span><span class="p">(</span><span class="n">points</span><span class="p">,</span> <span class="n">cell_size</span><span class="p">):</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Sorts the indices of the points into the grid by the given cell size.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    points : array of floats</span>
+<span class="sd">        A sequence points :math:`\mathbf{p}_i` that we want to search for</span>
+<span class="sd">        nearest neighbors.</span>
+<span class="sd">    cell_size : float</span>
+<span class="sd">        Positive real number :math:`c &gt; 0` denoting the cell size of the grid.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    (numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray)</span>
+<span class="sd">        Tuple of arrays where the elements are</span>
+
+<span class="sd">        - **points_indices** -- Array of integers for querying the indices of</span>
+<span class="sd">          nearest neighbors.</span>
+<span class="sd">        - **cells_count** -- Array of integers denoting the number of points</span>
+<span class="sd">          inside each cell.</span>
+<span class="sd">        - **cells_offset** -- Array of integers denoting the offset index for</span>
+<span class="sd">          each cell in **points_indices** array.</span>
+<span class="sd">        - **grid_shape** -- Array of integers denoting the shape of the output grid.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="n">cell_size</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">points</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span>
+
+    <span class="c1"># Size and dimensions of the points.</span>
+    <span class="n">size</span><span class="p">,</span> <span class="n">dimensions</span> <span class="o">=</span> <span class="n">points</span><span class="o">.</span><span class="n">shape</span>
+
+    <span class="c1"># Here we compute the ranges (min, max) for indices.</span>
+    <span class="n">x_min</span> <span class="o">=</span> <span class="p">(</span><span class="n">points</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:]</span> <span class="o">/</span> <span class="n">cell_size</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+    <span class="n">x_max</span> <span class="o">=</span> <span class="p">(</span><span class="n">points</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:]</span> <span class="o">/</span> <span class="n">cell_size</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">size</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">dimensions</span><span class="p">):</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">(</span><span class="n">points</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">/</span> <span class="n">cell_size</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="n">x_min</span><span class="p">[</span><span class="n">j</span><span class="p">]:</span>
+                <span class="n">x_min</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span>
+            <span class="k">if</span> <span class="n">x</span> <span class="o">&gt;</span> <span class="n">x_max</span><span class="p">[</span><span class="n">j</span><span class="p">]:</span>
+                <span class="n">x_max</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span>
+
+    <span class="c1"># Shape of the grid of bins.</span>
+    <span class="c1"># +1 is for converting from indexing to size.</span>
+    <span class="c1"># +2 is the padding from ghost cells which are extra cells for iterating</span>
+    <span class="c1"># over the cells without having to do complicated bounds checks.</span>
+    <span class="n">grid_shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">x_max</span> <span class="o">-</span> <span class="n">x_min</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="mi">2</span>
+    <span class="n">grid_size</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">grid_shape</span><span class="p">)</span>
+
+    <span class="c1"># Here we compute in which cell every point belongs to. Normalized by</span>
+    <span class="c1"># subtracting minimum index for each dimension.</span>
+    <span class="n">cells</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">size</span><span class="p">):</span>
+        <span class="n">l</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">(</span><span class="n">points</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">cell_size</span><span class="p">)</span> <span class="o">-</span> <span class="n">x_min</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">dimensions</span><span class="p">):</span>
+            <span class="n">l</span> <span class="o">*=</span> <span class="n">grid_shape</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+            <span class="n">l</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">(</span><span class="n">points</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">/</span> <span class="n">cell_size</span><span class="p">)</span> <span class="o">-</span> <span class="n">x_min</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="n">cells</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">l</span>
+
+    <span class="c1"># Count the number of points that go into each cell.</span>
+    <span class="n">cells_count</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="n">grid_size</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">cells</span><span class="p">:</span>
+        <span class="n">cells_count</span><span class="p">[</span><span class="n">l</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="c1"># Allocate array for saving indices of the points into the cell they belong</span>
+    <span class="c1"># and the amount of offset their index has in the array.</span>
+    <span class="n">points_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+    <span class="n">cells_offset</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">cells_count</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">cells</span><span class="p">):</span>
+        <span class="c1"># Assign the cell index of the current point into the place in the array</span>
+        <span class="c1"># denoted by the offset. Decrement the offset.</span>
+        <span class="n">offset</span> <span class="o">=</span> <span class="n">cells_offset</span><span class="p">[</span><span class="n">l</span><span class="p">]</span>
+        <span class="n">points_indices</span><span class="p">[</span><span class="n">offset</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span>
+        <span class="n">cells_offset</span><span class="p">[</span><span class="n">l</span><span class="p">]</span> <span class="o">-=</span> <span class="mi">1</span>
+
+    <span class="k">return</span> <span class="n">points_indices</span><span class="p">,</span> <span class="n">cells_count</span><span class="p">,</span> <span class="n">cells_offset</span><span class="p">,</span> <span class="n">grid_shape</span></div>
+
+
+<span class="nd">@numba</span><span class="o">.</span><span class="n">jit</span><span class="p">([(</span><span class="n">i8</span><span class="p">[:,</span> <span class="p">:],</span> <span class="n">i8</span><span class="p">[:])],</span> <span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">nogil</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">_neighboring_cells</span><span class="p">(</span><span class="n">prod</span><span class="p">,</span> <span class="n">grid_shape</span><span class="p">):</span>
+    <span class="n">size</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">prod</span><span class="p">)</span>
+    <span class="n">cells</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">size</span><span class="p">):</span>
+        <span class="n">l</span> <span class="o">=</span> <span class="n">prod</span><span class="p">[</span><span class="n">k</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">prod</span><span class="p">[</span><span class="n">k</span><span class="p">,</span> <span class="mi">1</span><span class="p">:],</span> <span class="n">grid_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">:]):</span>
+            <span class="n">l</span> <span class="o">=</span> <span class="n">l</span> <span class="o">*</span> <span class="n">n</span> <span class="o">+</span> <span class="n">i</span>
+        <span class="n">cells</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">l</span>
+
+    <span class="k">return</span> <span class="n">cells</span>
+
+
+<div class="viewcode-block" id="neighboring_cells"><a class="viewcode-back" href="../../cell_lists.html#cell_lists.cell_lists.neighboring_cells">[docs]</a><span class="k">def</span> <span class="nf">neighboring_cells</span><span class="p">(</span><span class="n">grid_shape</span><span class="p">,</span> <span class="n">distance</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Neighboring cells.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    grid_shape</span>
+<span class="sd">    distance : int</span>
+<span class="sd">        The maximum distance :math:`d \in \mathbb{N}` of nearest neighboring</span>
+<span class="sd">        cells.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        Array of differences of the indices of neighboring cells.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">distance</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">and</span> <span class="n">distance</span> <span class="o">&gt;=</span> <span class="mi">1</span>
+    <span class="n">base</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="o">-</span><span class="n">distance</span><span class="p">,</span> <span class="n">distance</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="n">prod</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">itertools</span><span class="o">.</span><span class="n">product</span><span class="p">(</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">grid_shape</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">base</span><span class="p">,)))</span>
+    <span class="n">prod_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">prod</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">prod</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:])</span>
+    <span class="k">return</span> <span class="n">_neighboring_cells</span><span class="p">(</span><span class="n">prod_</span><span class="p">,</span> <span class="n">grid_shape</span><span class="p">)</span></div>
+
+
+<span class="nd">@numba</span><span class="o">.</span><span class="n">jit</span><span class="p">([</span><span class="n">i8</span><span class="p">[:](</span><span class="n">i8</span><span class="p">,</span> <span class="n">i8</span><span class="p">[:],</span> <span class="n">i8</span><span class="p">[:],</span> <span class="n">i8</span><span class="p">[:])],</span>
+           <span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">nogil</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<div class="viewcode-block" id="find_points_in_cell"><a class="viewcode-back" href="../../cell_lists.html#cell_lists.cell_lists.find_points_in_cell">[docs]</a><span class="k">def</span> <span class="nf">find_points_in_cell</span><span class="p">(</span><span class="n">cell_index</span><span class="p">,</span> <span class="n">points_indices</span><span class="p">,</span> <span class="n">cells_count</span><span class="p">,</span> <span class="n">cells_offset</span><span class="p">):</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Return indices of points inside cell of cell_index.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    cell_index</span>
+<span class="sd">    points_indices</span>
+<span class="sd">    cells_count</span>
+<span class="sd">    cells_offset</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="n">cells_offset</span><span class="p">[</span><span class="n">cell_index</span><span class="p">]</span>
+    <span class="n">end</span> <span class="o">=</span> <span class="n">start</span> <span class="o">+</span> <span class="n">cells_count</span><span class="p">[</span><span class="n">cell_index</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">points_indices</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">]</span></div>
+
+
+<span class="nd">@numba</span><span class="o">.</span><span class="n">jit</span><span class="p">([(</span><span class="n">i8</span><span class="p">[:],</span> <span class="n">i8</span><span class="p">[:],</span> <span class="n">i8</span><span class="p">[:],</span> <span class="n">i8</span><span class="p">[:],</span> <span class="n">i8</span><span class="p">[:])],</span> <span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">nogil</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<div class="viewcode-block" id="iter_nearest_neighbors"><a class="viewcode-back" href="../../cell_lists.html#cell_lists.cell_lists.iter_nearest_neighbors">[docs]</a><span class="k">def</span> <span class="nf">iter_nearest_neighbors</span><span class="p">(</span><span class="n">cell_indices</span><span class="p">,</span> <span class="n">neigh_cells</span><span class="p">,</span> <span class="n">points_indices</span><span class="p">,</span> <span class="n">cells_count</span><span class="p">,</span>
+                           <span class="n">cells_offset</span><span class="p">):</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Iterate over cell lists</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    cell_indices</span>
+<span class="sd">        Indices of the cells to which iterate over.</span>
+<span class="sd">        `np.arange(len(cells_count))`</span>
+<span class="sd">    neigh_cells</span>
+<span class="sd">    points_indices</span>
+<span class="sd">    cells_count</span>
+<span class="sd">    cells_offset</span>
+
+<span class="sd">    Yields</span>
+<span class="sd">    ------</span>
+<span class="sd">    (int, int)</span>
+<span class="sd">        Tuple of indices of a pair of nearest neighbors.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">cur_cell</span> <span class="ow">in</span> <span class="n">cell_indices</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">cells_count</span><span class="p">[</span><span class="n">cur_cell</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">continue</span>
+
+        <span class="n">points_cur</span> <span class="o">=</span> <span class="n">find_points_in_cell</span><span class="p">(</span>
+            <span class="n">cur_cell</span><span class="p">,</span> <span class="n">points_indices</span><span class="p">,</span> <span class="n">cells_count</span><span class="p">,</span> <span class="n">cells_offset</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">points_cur</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]):</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">points_cur</span><span class="p">[</span><span class="n">k</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:]:</span>
+                <span class="k">yield</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span>
+
+        <span class="k">for</span> <span class="n">neigh_cell</span> <span class="ow">in</span> <span class="n">neigh_cells</span><span class="p">:</span>
+            <span class="n">points_neigh</span> <span class="o">=</span> <span class="n">find_points_in_cell</span><span class="p">(</span>
+                <span class="n">cur_cell</span> <span class="o">+</span> <span class="n">neigh_cell</span><span class="p">,</span> <span class="n">points_indices</span><span class="p">,</span> <span class="n">cells_count</span><span class="p">,</span>
+                <span class="n">cells_offset</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">points_cur</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">points_neigh</span><span class="p">:</span>
+                    <span class="k">yield</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span></div>
+
+
+<span class="nd">@numba</span><span class="o">.</span><span class="n">jit</span><span class="p">([(</span><span class="n">i8</span><span class="p">,</span> <span class="n">i8</span><span class="p">[:],</span> <span class="n">i8</span><span class="p">[:])],</span> <span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">nogil</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<div class="viewcode-block" id="split_into_parts"><a class="viewcode-back" href="../../cell_lists.html#cell_lists.cell_lists.split_into_parts">[docs]</a><span class="k">def</span> <span class="nf">split_into_parts</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">cells_count</span><span class="p">,</span> <span class="n">neigh_cells</span><span class="p">):</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Split cells equally by the amount of interactions between agents in</span>
+<span class="sd">    an cell and neighboring cells.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    n : int</span>
+<span class="sd">        Number of parts to split cells.</span>
+<span class="sd">    neigh_cells</span>
+<span class="sd">    cells_count</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.array</span>
+<span class="sd">        Array of the indices to slice the array for the splits.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="n">n</span> <span class="o">&gt;</span> <span class="mi">0</span>
+
+    <span class="c1"># Compute cumulative sum of number of interactions per cell.</span>
+    <span class="n">interactions_total</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">interactions_cumsum</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty_like</span><span class="p">(</span><span class="n">cells_count</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">count</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">cells_count</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">count</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">interactions_total</span> <span class="o">+=</span> <span class="p">(</span><span class="n">count</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">neigh_cells</span><span class="p">:</span>
+            <span class="n">interactions_total</span> <span class="o">+=</span> <span class="n">count</span> <span class="o">*</span> <span class="n">cells_count</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="n">j</span><span class="p">]</span>
+        <span class="n">interactions_cumsum</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">interactions_total</span>
+
+    <span class="c1"># Split the cells into parts that have equal amount of interactions.</span>
+    <span class="n">size</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">interactions_total</span> <span class="o">/</span> <span class="n">n</span><span class="p">))</span>
+    <span class="n">splits</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+    <span class="n">splits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">splits</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">cells_count</span><span class="p">)</span>
+
+    <span class="n">part_index</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">while</span> <span class="n">part_index</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">interactions_cumsum</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">part_index</span> <span class="o">*</span> <span class="n">size</span><span class="p">:</span>
+            <span class="n">splits</span><span class="p">[</span><span class="n">part_index</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span>
+            <span class="n">part_index</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="k">return</span> <span class="n">splits</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;Jaan Tollander de Balsch.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.5.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
