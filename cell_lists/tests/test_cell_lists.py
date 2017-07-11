@@ -7,7 +7,7 @@ from hypothesis.core import given, example
 from hypothesis.extra.numpy import arrays
 
 from cell_lists.cell_lists import add_to_cells, neighboring_cells, \
-    iter_nearest_neighbors, split_into_parts
+    iter_nearest_neighbors, partition_cells
 
 
 def reals(min_value=None,
@@ -72,13 +72,6 @@ def test_neighboring_cells(grid_shape):
     assert True
 
 
-def neighbor_distance_condition(cell_size, dimension, p0, p1):
-    max_distance = 2 * cell_size * np.sqrt(dimension)
-    distance = np.linalg.norm(p0 - p1)
-    return distance <= max_distance or \
-           np.isclose(distance, max_distance, rtol=1.e-3, atol=1.e-5)
-
-
 @numba.jit(nopython=True, nogil=True, cache=True)
 def brute_force(indices, points, radius):
     result = []
@@ -101,6 +94,13 @@ def find_neighbors(cell_indices, neigh_cells, points_indices, cells_count,
     return result
 
 
+def neighbor_distance_condition(cell_size, dimension, p0, p1):
+    max_distance = 2 * cell_size * np.sqrt(dimension)
+    distance = np.linalg.norm(p0 - p1)
+    return distance <= max_distance or \
+           np.isclose(distance, max_distance, rtol=1.e-3, atol=1.e-5)
+
+
 @given(points=reals(-10.0, 10.0, shape=(10, 2)) |
               reals(-10.0, 10.0, shape=(10, 3)),
        cell_size=st.floats(0.1, 1.0))
@@ -121,10 +121,9 @@ def test_find_neighbors(points, cell_size):
     result = find_neighbors(cell_indices, neigh_cells, points_indices,
                             cells_count, cells_offset)
 
-    # FIXME
-    # for i, j in result:
-    #     assert neighbor_distance_condition(
-    #         cell_size, dimension, points[i, :], points[j, :])
+    for i, j in result:
+        assert neighbor_distance_condition(
+            cell_size, dimension, points[i, :], points[j, :])
 
     results_set = {(i, j) for i, j in result if
                    np.linalg.norm(points[i, :] - points[j, :]) <= cell_size}
@@ -151,7 +150,7 @@ def test_multithreaded():
         points, cell_size)
     cell_indices = np.arange(len(cells_count))
     neigh_cells = neighboring_cells(grid_shape)
-    splits = split_into_parts(n, cells_count, neigh_cells)
+    splits = partition_cells(n, cells_count, neigh_cells)
 
     cell_indices_chucks = (cell_indices[start:end] for start, end in
                            zip(splits[:-1], splits[1:]))

@@ -251,7 +251,7 @@ def iter_nearest_neighbors(cell_indices, neigh_cells, points_indices, cells_coun
 
 
 @numba.jit([(i8, i8[:], i8[:])], nopython=True, nogil=True, cache=True)
-def split_into_parts(n, cells_count, neigh_cells):
+def partition_cells(n, cells_count, neigh_cells):
     r"""Split cells equally by the amount of interactions between agents in
     an cell and neighboring cells.
 

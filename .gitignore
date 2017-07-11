@@ -101,3 +101,4 @@ ENV/
 # Rope project settings
 .ropeproject
 
+/dist/Cell Lists-0.1.tar.gz
