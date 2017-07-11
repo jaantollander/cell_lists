@@ -296,7 +296,7 @@
 
 
 <span class="nd">@numba</span><span class="o">.</span><span class="n">jit</span><span class="p">([(</span><span class="n">i8</span><span class="p">,</span> <span class="n">i8</span><span class="p">[:],</span> <span class="n">i8</span><span class="p">[:])],</span> <span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">nogil</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<div class="viewcode-block" id="split_into_parts"><a class="viewcode-back" href="../../cell_lists.html#cell_lists.cell_lists.split_into_parts">[docs]</a><span class="k">def</span> <span class="nf">split_into_parts</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">cells_count</span><span class="p">,</span> <span class="n">neigh_cells</span><span class="p">):</span>
+<div class="viewcode-block" id="partition_cells"><a class="viewcode-back" href="../../cell_lists.html#cell_lists.cell_lists.partition_cells">[docs]</a><span class="k">def</span> <span class="nf">partition_cells</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">cells_count</span><span class="p">,</span> <span class="n">neigh_cells</span><span class="p">):</span>
     <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Split cells equally by the amount of interactions between agents in</span>
 <span class="sd">    an cell and neighboring cells.</span>
 
