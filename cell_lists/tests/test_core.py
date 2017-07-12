@@ -6,7 +6,7 @@ import numpy as np
 from hypothesis.core import given, example
 from hypothesis.extra.numpy import arrays
 
-from cell_lists.cell_lists import add_to_cells, neighboring_cells, \
+from cell_lists.core import add_to_cells, neighboring_cells, \
     iter_nearest_neighbors, partition_cells
 
 
@@ -155,8 +155,6 @@ def test_multithreaded():
     cell_indices_chucks = (cell_indices[start:end] for start, end in
                            zip(splits[:-1], splits[1:]))
 
-    # TODO: save results and compare with single threaded version
-    # TODO: check that the solution is valid
     results = [[] for _ in range(n)]
 
     # Spawn one thread per chunk

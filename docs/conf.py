@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.abspath('..'))
 #
 # ROOT_PATH = os.path.dirname(os.path.dirname(__file__))
 #
-# out_path = 'apidocs'
+# out_path = 'API'
 # module_path = os.path.join(ROOT_PATH, 'cell_lists')
 # main(['--separate',
 #       '--output-dir', out_path, module_path,
@@ -58,8 +58,9 @@ copyright = author
 
 
 # Version and Release
-version = '0.1'
-release = '0.1'
+from cell_lists import __version__
+version = __version__
+release = __version__
 
 
 # Style

@@ -1,5 +1,6 @@
 
-.. automodule:: cell_lists.cell_lists
+.. automodule:: cell_lists.core
     :members:
     :undoc-members:
     :show-inheritance:
+    :noindex:

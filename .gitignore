@@ -1,7 +1,8 @@
 .idea
 *.benchmarks
-apidocs
+API
 make_docs.py
+benchmarks/*.html
 
 
 # Created by .ignore support plugin (hsz.mobi)
