@@ -1,30 +1,17 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 
+<!DOCTYPE html>
 
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en">
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>cell_lists.cell_lists &#8212; Cell Lists 0.1 documentation</title>
-    
+    <meta charset="utf-8" />
+    <title>cell_lists.core &#8212; Cell Lists 0.1 documentation</title>
     <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
-    
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '../../',
-        VERSION:     '0.1',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
     <script type="text/javascript" src="../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../_static/doctools.js"></script>
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
    
@@ -33,114 +20,48 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
 
-  </head>
-  <body role="document">
+  </head><body>
   
 
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
+          
+
           <div class="body" role="main">
             
-  <h1>Source code for cell_lists.cell_lists</h1><div class="highlight"><pre>
-<span></span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">Fixed-Radius Nearest Neighbors Search</span>
-<span class="sd">=====================================</span>
-<span class="sd">Cell lists algorithm partitions space into grid and sorts points into a cell in</span>
-<span class="sd">discrete grid, allowing *fast nearest neighbor searches* for *fixed radius*</span>
-<span class="sd">because it is only necessary to search current and neighboring cells for points</span>
-<span class="sd">instead of the whole domain.</span>
-
-
-<span class="sd">Inserting the Points into Cells</span>
-<span class="sd">-------------------------------</span>
-<span class="sd">Point in :math:`n \in \mathbb{N}` dimension is denoted</span>
-
-<span class="sd">.. math::</span>
-<span class="sd">   \mathbf{p}_i \in \mathbb{R}^n</span>
-
-<span class="sd">An sequence of points of size :math:`N`, for which index set is</span>
-<span class="sd">:math:`J = \{0,\ldots ,N-1\}`, is denoted</span>
-
-<span class="sd">.. math::</span>
-<span class="sd">   (\mathbf{p}_i)_{i \in J}</span>
-
-<span class="sd">A cell of size :math:`c &gt; 0` for point :math:`i` is calculated</span>
-
-<span class="sd">.. math::</span>
-<span class="sd">   \mathbf{c}_i = \left\lfloor \frac{\mathbf{p}_i}{c} \right\rfloor</span>
-
-<span class="sd">Algorithm</span>
-
-<span class="sd">1. Compute the shape of the grid</span>
-<span class="sd">2. Add ghost cells into the shape</span>
-<span class="sd">3. Count the number of points that belong to each cell</span>
-<span class="sd">4. Cumulative sum of the counts</span>
-<span class="sd">5. Sort the indices of the points in order which they appear in the cells and</span>
-<span class="sd">   store them in an array.</span>
-
-
-<span class="sd">Finding Nearest Neighbors</span>
-<span class="sd">-------------------------</span>
-
-
-<span class="sd">Computational Complexity</span>
-<span class="sd">------------------------</span>
-<span class="sd">Brute force</span>
-
-<span class="sd">.. math::</span>
-<span class="sd">   \mathcal{O}(N^2)</span>
-
-<span class="sd">Cell lists</span>
-
-<span class="sd">.. math::</span>
-<span class="sd">   \mathcal{O}(N k)</span>
-
-
-<span class="sd">Memory Usage</span>
-<span class="sd">------------</span>
-
-
-<span class="sd">References</span>
-<span class="sd">----------</span>
-<span class="sd">.. [FRNNS] Fixed-radius near neighbors. (2017). En.wikipedia.org. Retrieved 10 July 2017, from https://en.wikipedia.org/wiki/Fixed-radius_near_neighbors</span>
-<span class="sd">.. [celllists] Cell lists. (2017). En.wikipedia.org. Retrieved 10 July 2017, from https://en.wikipedia.org/wiki/Cell_lists</span>
-<span class="sd">.. [Bentley75] Bentley, J. L. (1975). A Survey of techniques for fixed radius near neighbor searching, 37.</span>
-<span class="sd">.. [Lecture2] Lecture 2 : Fixed-Radius Near Neighbors and Geometric Basics. (1977), 5–16.</span>
-<span class="sd">.. [Hoetzlein14] Hoetzlein, R. (2014). Fast Fixed-Radius Nearest Neighbors: Interactive Million-Particle Fluids. GPU Technology Conference.</span>
-
-<span class="sd">----</span>
-<span class="sd">&quot;&quot;&quot;</span>
-<span class="kn">import</span> <span class="nn">numba</span>
+  <h1>Source code for cell_lists.core</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numba</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">numba</span> <span class="k">import</span> <span class="n">f8</span><span class="p">,</span> <span class="n">i8</span>
 <span class="kn">import</span> <span class="nn">itertools</span>
 
 
-<span class="nd">@numba</span><span class="o">.</span><span class="n">jit</span><span class="p">([(</span><span class="n">f8</span><span class="p">[:,</span> <span class="p">:],</span> <span class="n">f8</span><span class="p">)],</span> <span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">nogil</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<div class="viewcode-block" id="add_to_cells"><a class="viewcode-back" href="../../cell_lists.html#cell_lists.cell_lists.add_to_cells">[docs]</a><span class="k">def</span> <span class="nf">add_to_cells</span><span class="p">(</span><span class="n">points</span><span class="p">,</span> <span class="n">cell_size</span><span class="p">):</span>
+<div class="viewcode-block" id="add_to_cells"><a class="viewcode-back" href="../../index.html#cell_lists.core.add_to_cells">[docs]</a><span class="nd">@numba</span><span class="o">.</span><span class="n">jit</span><span class="p">([(</span><span class="n">f8</span><span class="p">[:,</span> <span class="p">:],</span> <span class="n">f8</span><span class="p">)],</span> <span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">nogil</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">add_to_cells</span><span class="p">(</span><span class="n">points</span><span class="p">,</span> <span class="n">cell_size</span><span class="p">):</span>
     <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Sorts the indices of the points into the grid by the given cell size.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    points : array of floats</span>
-<span class="sd">        A sequence points :math:`\mathbf{p}_i` that we want to search for</span>
-<span class="sd">        nearest neighbors.</span>
+<span class="sd">        Two dimensional array of points where rows are the individual points and</span>
+<span class="sd">        columns are the dimensions.</span>
 <span class="sd">    cell_size : float</span>
-<span class="sd">        Positive real number :math:`c &gt; 0` denoting the cell size of the grid.</span>
+<span class="sd">        Positive real number denoting the cell size of the grid.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
 <span class="sd">    (numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray)</span>
-<span class="sd">        Tuple of arrays where the elements are</span>
+<span class="sd">        Tuple of four arrays where the arrays are</span>
 
-<span class="sd">        - **points_indices** -- Array of integers for querying the indices of</span>
-<span class="sd">          nearest neighbors.</span>
-<span class="sd">        - **cells_count** -- Array of integers denoting the number of points</span>
-<span class="sd">          inside each cell.</span>
-<span class="sd">        - **cells_offset** -- Array of integers denoting the offset index for</span>
-<span class="sd">          each cell in **points_indices** array.</span>
-<span class="sd">        - **grid_shape** -- Array of integers denoting the shape of the output grid.</span>
+<span class="sd">        1. **points_indices** -- Array of integers for querying the indices of</span>
+<span class="sd">           nearest neighbors.</span>
+<span class="sd">        2. **cells_count** -- Array of integers denoting the number of points</span>
+<span class="sd">           inside each cell.</span>
+<span class="sd">        3. **cells_offset** -- Array of integers denoting the offset index for</span>
+<span class="sd">           each cell in **points_indices** array.</span>
+<span class="sd">        4. **grid_shape** -- Array of integers denoting the shape of the output</span>
+<span class="sd">           grid.</span>
 
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">assert</span> <span class="n">cell_size</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">points</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span>
@@ -210,15 +131,16 @@
     <span class="k">return</span> <span class="n">cells</span>
 
 
-<div class="viewcode-block" id="neighboring_cells"><a class="viewcode-back" href="../../cell_lists.html#cell_lists.cell_lists.neighboring_cells">[docs]</a><span class="k">def</span> <span class="nf">neighboring_cells</span><span class="p">(</span><span class="n">grid_shape</span><span class="p">,</span> <span class="n">distance</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+<div class="viewcode-block" id="neighboring_cells"><a class="viewcode-back" href="../../index.html#cell_lists.core.neighboring_cells">[docs]</a><span class="k">def</span> <span class="nf">neighboring_cells</span><span class="p">(</span><span class="n">grid_shape</span><span class="p">,</span> <span class="n">distance</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
     <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Neighboring cells.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
-<span class="sd">    grid_shape</span>
+<span class="sd">    grid_shape : numpy.ndarray</span>
+<span class="sd">        Grid shape from `add_to_cells` function.</span>
 <span class="sd">    distance : int</span>
-<span class="sd">        The maximum distance :math:`d \in \mathbb{N}` of nearest neighboring</span>
-<span class="sd">        cells.</span>
+<span class="sd">        Positive integer denoting the maximum distance of nearest neighboring</span>
+<span class="sd">        cells. Has a default value of 1.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
@@ -233,42 +155,52 @@
     <span class="k">return</span> <span class="n">_neighboring_cells</span><span class="p">(</span><span class="n">prod_</span><span class="p">,</span> <span class="n">grid_shape</span><span class="p">)</span></div>
 
 
-<span class="nd">@numba</span><span class="o">.</span><span class="n">jit</span><span class="p">([</span><span class="n">i8</span><span class="p">[:](</span><span class="n">i8</span><span class="p">,</span> <span class="n">i8</span><span class="p">[:],</span> <span class="n">i8</span><span class="p">[:],</span> <span class="n">i8</span><span class="p">[:])],</span>
+<div class="viewcode-block" id="find_points_in_cell"><a class="viewcode-back" href="../../index.html#cell_lists.core.find_points_in_cell">[docs]</a><span class="nd">@numba</span><span class="o">.</span><span class="n">jit</span><span class="p">([</span><span class="n">i8</span><span class="p">[:](</span><span class="n">i8</span><span class="p">,</span> <span class="n">i8</span><span class="p">[:],</span> <span class="n">i8</span><span class="p">[:],</span> <span class="n">i8</span><span class="p">[:])],</span>
            <span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">nogil</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<div class="viewcode-block" id="find_points_in_cell"><a class="viewcode-back" href="../../cell_lists.html#cell_lists.cell_lists.find_points_in_cell">[docs]</a><span class="k">def</span> <span class="nf">find_points_in_cell</span><span class="p">(</span><span class="n">cell_index</span><span class="p">,</span> <span class="n">points_indices</span><span class="p">,</span> <span class="n">cells_count</span><span class="p">,</span> <span class="n">cells_offset</span><span class="p">):</span>
-    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Return indices of points inside cell of cell_index.</span>
+<span class="k">def</span> <span class="nf">find_points_in_cell</span><span class="p">(</span><span class="n">cell_index</span><span class="p">,</span> <span class="n">points_indices</span><span class="p">,</span> <span class="n">cells_count</span><span class="p">,</span> <span class="n">cells_offset</span><span class="p">):</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Find indices of points inside cell of index `cell_index`.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
-<span class="sd">    cell_index</span>
-<span class="sd">    points_indices</span>
-<span class="sd">    cells_count</span>
-<span class="sd">    cells_offset</span>
+<span class="sd">    cell_index : int</span>
+<span class="sd">        Integer denoting an index of a cell.</span>
+<span class="sd">    points_indices : numpy.ndarray</span>
+<span class="sd">        Value obtained from `add_to_cells` function.</span>
+<span class="sd">    cells_count : numpy.ndarray</span>
+<span class="sd">        Value obtained from `add_to_cells` function.</span>
+<span class="sd">    cells_offset : numpy.ndarray</span>
+<span class="sd">        Value obtained from `add_to_cells` function.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
 <span class="sd">    numpy.ndarray</span>
-
+<span class="sd">        Array of integers denoting the indices of points that belong into the</span>
+<span class="sd">        cell of index `cell_index`. Subset of `points_indices`</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">start</span> <span class="o">=</span> <span class="n">cells_offset</span><span class="p">[</span><span class="n">cell_index</span><span class="p">]</span>
     <span class="n">end</span> <span class="o">=</span> <span class="n">start</span> <span class="o">+</span> <span class="n">cells_count</span><span class="p">[</span><span class="n">cell_index</span><span class="p">]</span>
     <span class="k">return</span> <span class="n">points_indices</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">]</span></div>
 
 
-<span class="nd">@numba</span><span class="o">.</span><span class="n">jit</span><span class="p">([(</span><span class="n">i8</span><span class="p">[:],</span> <span class="n">i8</span><span class="p">[:],</span> <span class="n">i8</span><span class="p">[:],</span> <span class="n">i8</span><span class="p">[:],</span> <span class="n">i8</span><span class="p">[:])],</span> <span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">nogil</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<div class="viewcode-block" id="iter_nearest_neighbors"><a class="viewcode-back" href="../../cell_lists.html#cell_lists.cell_lists.iter_nearest_neighbors">[docs]</a><span class="k">def</span> <span class="nf">iter_nearest_neighbors</span><span class="p">(</span><span class="n">cell_indices</span><span class="p">,</span> <span class="n">neigh_cells</span><span class="p">,</span> <span class="n">points_indices</span><span class="p">,</span> <span class="n">cells_count</span><span class="p">,</span>
+<div class="viewcode-block" id="iter_nearest_neighbors"><a class="viewcode-back" href="../../index.html#cell_lists.core.iter_nearest_neighbors">[docs]</a><span class="nd">@numba</span><span class="o">.</span><span class="n">jit</span><span class="p">([(</span><span class="n">i8</span><span class="p">[:],</span> <span class="n">i8</span><span class="p">[:],</span> <span class="n">i8</span><span class="p">[:],</span> <span class="n">i8</span><span class="p">[:],</span> <span class="n">i8</span><span class="p">[:])],</span> <span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">nogil</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">iter_nearest_neighbors</span><span class="p">(</span><span class="n">cell_indices</span><span class="p">,</span> <span class="n">neigh_cells</span><span class="p">,</span> <span class="n">points_indices</span><span class="p">,</span> <span class="n">cells_count</span><span class="p">,</span>
                            <span class="n">cells_offset</span><span class="p">):</span>
-    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Iterate over cell lists</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Iterate over cell lists to find all the nearest neighbor pairs of</span>
+<span class="sd">    points.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
-<span class="sd">    cell_indices</span>
+<span class="sd">    cell_indices : numpy.ndarray</span>
 <span class="sd">        Indices of the cells to which iterate over.</span>
-<span class="sd">        `np.arange(len(cells_count))`</span>
-<span class="sd">    neigh_cells</span>
-<span class="sd">    points_indices</span>
-<span class="sd">    cells_count</span>
-<span class="sd">    cells_offset</span>
+<span class="sd">        By default, use `np.arange(len(cells_count))`</span>
+<span class="sd">    neigh_cells : numpy.ndarray</span>
+<span class="sd">        Neighboring cell from `neighboring_cells` function.</span>
+<span class="sd">    points_indices : numpy.ndarray</span>
+<span class="sd">        Value obtained from `add_to_cells` function.</span>
+<span class="sd">    cells_count : numpy.ndarray</span>
+<span class="sd">        Value obtained from `add_to_cells` function.</span>
+<span class="sd">    cells_offset : numpy.ndarray</span>
+<span class="sd">        Value obtained from `add_to_cells` function.</span>
 
 <span class="sd">    Yields</span>
 <span class="sd">    ------</span>
@@ -296,7 +228,7 @@
 
 
 <span class="nd">@numba</span><span class="o">.</span><span class="n">jit</span><span class="p">([(</span><span class="n">i8</span><span class="p">,</span> <span class="n">i8</span><span class="p">[:],</span> <span class="n">i8</span><span class="p">[:])],</span> <span class="n">nopython</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">nogil</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<div class="viewcode-block" id="partition_cells"><a class="viewcode-back" href="../../cell_lists.html#cell_lists.cell_lists.partition_cells">[docs]</a><span class="k">def</span> <span class="nf">partition_cells</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">cells_count</span><span class="p">,</span> <span class="n">neigh_cells</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">partition_cells</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">cells_count</span><span class="p">,</span> <span class="n">neigh_cells</span><span class="p">):</span>
     <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Split cells equally by the amount of interactions between agents in</span>
 <span class="sd">    an cell and neighboring cells.</span>
 
@@ -341,14 +273,27 @@
             <span class="n">part_index</span> <span class="o">+=</span> <span class="mi">1</span>
         <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
 
-    <span class="k">return</span> <span class="n">splits</span></div>
+    <span class="k">return</span> <span class="n">splits</span>
 </pre></div>
 
           </div>
+          
         </div>
       </div>
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
-        <div class="sphinxsidebarwrapper"><div class="relations">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">Cell Lists</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
 <h3>Related Topics</h3>
 <ul>
   <li><a href="../../index.html">Documentation overview</a><ul>
@@ -358,15 +303,23 @@
 </ul>
 </div>
 <div id="searchbox" style="display: none" role="search">
-  <h3>Quick search</h3>
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
     <form class="search" action="../../search.html" method="get">
-      <div><input type="text" name="q" /></div>
-      <div><input type="submit" value="Go" /></div>
-      <input type="hidden" name="check_keywords" value="yes" />
-      <input type="hidden" name="area" value="default" />
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
     </form>
+    </div>
 </div>
 <script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
         </div>
       </div>
       <div class="clearer"></div>
@@ -375,8 +328,8 @@
       &copy;Jaan Tollander de Balsch.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.5.5</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.2.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
     </div>
 

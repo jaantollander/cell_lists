@@ -1,109 +1,184 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 
+<!DOCTYPE html>
 
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en">
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
+    <meta charset="utf-8" />
     <title>Cell Lists &#8212; Cell Lists 0.1 documentation</title>
-    
     <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-    
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    './',
-        VERSION:     '0.1',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
     <script type="text/javascript" src="_static/jquery.js"></script>
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Fixed-Radius Nearest Neighbors Search" href="cell_lists.html" />
    
   <link rel="stylesheet" href="_static/custom.css" type="text/css" />
   
   
   <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
 
-  </head>
-  <body role="document">
+  </head><body>
   
 
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
+          
+
           <div class="body" role="main">
             
   <div class="section" id="cell-lists">
 <h1>Cell Lists<a class="headerlink" href="#cell-lists" title="Permalink to this headline">¶</a></h1>
-<p>Cell lists is an algorithm for computing fast fixed-radius nearest neighbors search.</p>
-<div class="toctree-wrapper compound">
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="cell_lists.html">Fixed-Radius Nearest Neighbors Search</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="cell_lists.html#inserting-the-points-into-cells">Inserting the Points into Cells</a></li>
-<li class="toctree-l2"><a class="reference internal" href="cell_lists.html#finding-nearest-neighbors">Finding Nearest Neighbors</a></li>
-<li class="toctree-l2"><a class="reference internal" href="cell_lists.html#computational-complexity">Computational Complexity</a></li>
-<li class="toctree-l2"><a class="reference internal" href="cell_lists.html#memory-usage">Memory Usage</a></li>
+<p>Cell lists is an algorithm for computing fast fixed-radius nearest neighbors search. This documentation contains the API of the <cite>cell_lists</cite> package.</p>
+<div class="section" id="api">
+<h2>API<a class="headerlink" href="#api" title="Permalink to this headline">¶</a></h2>
+<dl class="attribute">
+<dt>
+<code class="sig-prename descclassname">cell_lists.core.</code><code class="sig-name descname">add_to_cells</code><a class="reference internal" href="_modules/cell_lists/core.html#add_to_cells"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Sorts the indices of the points into the grid by the given cell size.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>points</strong> (<em>array of floats</em>) – Two dimensional array of points where rows are the individual points and
+columns are the dimensions.</p></li>
+<li><p><strong>cell_size</strong> (<em>float</em>) – Positive real number denoting the cell size of the grid.</p></li>
 </ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="benchmarks.html">Benchmarks</a></li>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><p>Tuple of four arrays where the arrays are</p>
+<ol class="arabic simple">
+<li><p><strong>points_indices</strong> – Array of integers for querying the indices of
+nearest neighbors.</p></li>
+<li><p><strong>cells_count</strong> – Array of integers denoting the number of points
+inside each cell.</p></li>
+<li><p><strong>cells_offset</strong> – Array of integers denoting the offset index for
+each cell in <strong>points_indices</strong> array.</p></li>
+<li><p><strong>grid_shape</strong> – Array of integers denoting the shape of the output
+grid.</p></li>
+</ol>
+</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt>
+<code class="sig-prename descclassname">cell_lists.core.</code><code class="sig-name descname">neighboring_cells</code><span class="sig-paren">(</span><em class="sig-param">grid_shape</em>, <em class="sig-param">distance=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cell_lists/core.html#neighboring_cells"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Neighboring cells.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>grid_shape</strong> (<em>numpy.ndarray</em>) – Grid shape from <cite>add_to_cells</cite> function.</p></li>
+<li><p><strong>distance</strong> (<em>int</em>) – Positive integer denoting the maximum distance of nearest neighboring
+cells. Has a default value of 1.</p></li>
 </ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Array of differences of the indices of neighboring cells.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>numpy.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt>
+<code class="sig-prename descclassname">cell_lists.core.</code><code class="sig-name descname">find_points_in_cell</code><a class="reference internal" href="_modules/cell_lists/core.html#find_points_in_cell"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Find indices of points inside cell of index <cite>cell_index</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>cell_index</strong> (<em>int</em>) – Integer denoting an index of a cell.</p></li>
+<li><p><strong>points_indices</strong> (<em>numpy.ndarray</em>) – Value obtained from <cite>add_to_cells</cite> function.</p></li>
+<li><p><strong>cells_count</strong> (<em>numpy.ndarray</em>) – Value obtained from <cite>add_to_cells</cite> function.</p></li>
+<li><p><strong>cells_offset</strong> (<em>numpy.ndarray</em>) – Value obtained from <cite>add_to_cells</cite> function.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Array of integers denoting the indices of points that belong into the
+cell of index <cite>cell_index</cite>. Subset of <cite>points_indices</cite></p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>numpy.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt>
+<code class="sig-prename descclassname">cell_lists.core.</code><code class="sig-name descname">iter_nearest_neighbors</code><a class="reference internal" href="_modules/cell_lists/core.html#iter_nearest_neighbors"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Iterate over cell lists to find all the nearest neighbor pairs of
+points.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>cell_indices</strong> (<em>numpy.ndarray</em>) – Indices of the cells to which iterate over.
+By default, use <cite>np.arange(len(cells_count))</cite></p></li>
+<li><p><strong>neigh_cells</strong> (<em>numpy.ndarray</em>) – Neighboring cell from <cite>neighboring_cells</cite> function.</p></li>
+<li><p><strong>points_indices</strong> (<em>numpy.ndarray</em>) – Value obtained from <cite>add_to_cells</cite> function.</p></li>
+<li><p><strong>cells_count</strong> (<em>numpy.ndarray</em>) – Value obtained from <cite>add_to_cells</cite> function.</p></li>
+<li><p><strong>cells_offset</strong> (<em>numpy.ndarray</em>) – Value obtained from <cite>add_to_cells</cite> function.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Yields</dt>
+<dd class="field-even"><p><em>(int, int)</em> – Tuple of indices of a pair of nearest neighbors.</p>
+</dd>
+</dl>
+</dd></dl>
+
 </div>
-</div>
-<div class="section" id="indices-and-tables">
-<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
-<ul class="simple">
-<li><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></li>
-<li><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></li>
-<li><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></li>
-</ul>
 </div>
 
 
           </div>
+          
         </div>
       </div>
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
-  <h3><a href="#">Table Of Contents</a></h3>
-  <ul>
-<li><a class="reference internal" href="#">Cell Lists</a></li>
-<li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
-</ul>
+<h1 class="logo"><a href="#">Cell Lists</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
 <div class="relations">
 <h3>Related Topics</h3>
 <ul>
   <li><a href="#">Documentation overview</a><ul>
-      <li>Next: <a href="cell_lists.html" title="next chapter">Fixed-Radius Nearest Neighbors Search</a></li>
   </ul></li>
 </ul>
 </div>
-  <div role="note" aria-label="source link">
-    <h3>This Page</h3>
-    <ul class="this-page-menu">
-      <li><a href="_sources/index.rst.txt"
-            rel="nofollow">Show Source</a></li>
-    </ul>
-   </div>
 <div id="searchbox" style="display: none" role="search">
-  <h3>Quick search</h3>
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
     <form class="search" action="search.html" method="get">
-      <div><input type="text" name="q" /></div>
-      <div><input type="submit" value="Go" /></div>
-      <input type="hidden" name="check_keywords" value="yes" />
-      <input type="hidden" name="area" value="default" />
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
     </form>
+    </div>
 </div>
 <script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
         </div>
       </div>
       <div class="clearer"></div>
@@ -112,8 +187,8 @@
       &copy;Jaan Tollander de Balsch.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.5.5</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.2.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |
       <a href="_sources/index.rst.txt"
