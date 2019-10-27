@@ -1,3 +1,0 @@
-## Documentation
-sphinx==1.5.5
-#sphinxcontrib-tikz==0.4.4
