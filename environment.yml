@@ -1,0 +1,10 @@
+name: cell_lists
+dependencies:
+  - python=3.6
+  - numpy
+  - numba
+  - scipy  # np.linalg.norm in tests requires scipy
+  - pip:
+      - sphinx
+      - pytest
+      - hypothesis

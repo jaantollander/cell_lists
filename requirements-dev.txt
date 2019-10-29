@@ -1,4 +1,15 @@
-jupyter
+numpy
+numba
+
+## Documentation
+sphinx==1.5.5
+ghp-import
 livereload
+
+## Tests
+pytest==3.0.7
+hypothesis==3.8.2
+scipy  # np.linalg.norm
+
+## Benchmarks
 bokeh
-pyparsing
