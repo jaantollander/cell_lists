@@ -1,5 +1,5 @@
 # Cell Lists
-![](example.svg)
+![](frnns_cell_lists.svg)
 
 *Cell lists* is an algorithm for computing fast *fixed-radius near neighbors search*. Cell lists algorithm partitions the space contained by the points into a grid. The grid cells can be regarded as buckets in which individual points belong. By choosing the fixed-radius as the cell size, the nearest neighbors can be found from each cell or the neighboring cells of that cell.
 
